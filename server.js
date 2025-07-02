@@ -1,4 +1,3 @@
-
 import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
@@ -16,27 +15,24 @@ app.post("/get-price", async (req, res) => {
 
   try {
     // Giriş yap
-    const loginRes = await fetch("https://example.com/login", {
+    const loginRes = await fetch("https://www.payasbebe.com/Uye/giris", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"
       },
       body: `email=${encodeURIComponent(process.env.LOGIN_EMAIL)}&password=${encodeURIComponent(process.env.LOGIN_PASSWORD)}`,
+      redirect: "manual"
     });
 
-    if (!loginRes.ok) {
-      return res.status(401).json({ error: "Giriş başarısız" });
-    }
-
-    const cookies = loginRes.headers.get("set-cookie");
-    if (!cookies) {
+    const cookie = loginRes.headers.get("set-cookie");
+    if (!cookie) {
       return res.status(403).json({ error: "Oturum açma çerezi alınamadı" });
     }
 
     // Ürün sayfasını çek
     const productHtml = await fetch(productUrl, {
       headers: {
-        Cookie: cookies
+        "Cookie": cookie
       }
     }).then(r => r.text());
 
