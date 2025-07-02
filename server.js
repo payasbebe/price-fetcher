@@ -57,6 +57,6 @@ app.post("/get-price", async (req, res) => {
 
 // Render'da PORT mutlaka environment'dan alınmalı
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ Sunucu çalışıyor: http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Sunucu çalışıyor: http://0.0.0.0:${PORT}`);
 });
