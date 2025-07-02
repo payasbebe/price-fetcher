@@ -1,6 +1,6 @@
 import express from "express";
-import fetch from "node-fetch";
 import dotenv from "dotenv";
+import fetch from "node-fetch"; // Node 18+ kullanıyorsan gerek yok
 dotenv.config();
 
 const app = express();
@@ -24,12 +24,15 @@ app.post("/get-price", async (req, res) => {
       redirect: "manual"
     });
 
-    const cookie = loginRes.headers.get("set-cookie");
-    if (!cookie) {
+    const rawCookies = loginRes.headers.raw()["set-cookie"];
+    if (!rawCookies || rawCookies.length === 0) {
       return res.status(403).json({ error: "Oturum açma çerezi alınamadı" });
     }
 
-    // Ürün sayfasını çek
+    // Tüm çerezleri birleştir
+    const cookie = rawCookies.map(entry => entry.split(";")[0]).join("; ");
+
+    // Ürün sayfasını çerezle çek
     const productHtml = await fetch(productUrl, {
       headers: {
         "Cookie": cookie
@@ -47,12 +50,13 @@ app.post("/get-price", async (req, res) => {
 
     return res.json({ priceTL, priceUSD });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Sunucu hatası", detail: err.message });
+    console.error("❌ Sunucu hatası:", err);
+    return res.status(500).json({ error: "Sunucu hatası", detail: err.message });
   }
 });
 
+// Render'da PORT mutlaka environment'dan alınmalı
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Sunucu çalışıyor: http://localhost:${PORT}`);
+  console.log(`✅ Sunucu çalışıyor: http://localhost:${PORT}`);
 });
