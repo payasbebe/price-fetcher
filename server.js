@@ -1,10 +1,16 @@
 import express from "express";
 import fetch from "node-fetch";
+import fetchCookie from "fetch-cookie";
+import { CookieJar } from "tough-cookie";
 import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
 app.use(express.json());
+
+// Çerez yöneten fetch
+const jar = new CookieJar();
+const fetchWithCookies = fetchCookie(fetch, jar);
 
 app.post("/get-price", async (req, res) => {
   const { productUrl } = req.body;
@@ -15,26 +21,29 @@ app.post("/get-price", async (req, res) => {
 
   try {
     // 🔐 Giriş yap
-    const loginRes = await fetch("https://www.payasbebe.com/Uye/giris", {
+    const loginRes = await fetchWithCookies("https://www.payasbebe.com/Uye/giris", {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "Mozilla/5.0",
+        "Referer": "https://www.payasbebe.com/Uye/giris"
       },
       body: `email=${encodeURIComponent(process.env.LOGIN_EMAIL)}&sifre=${encodeURIComponent(process.env.LOGIN_PASSWORD)}`,
-      redirect: "follow"
     });
 
-    const cookie = loginRes.headers.get("set-cookie");
-    if (!cookie) {
-      return res.status(403).json({ error: "Oturum açma çerezi alınamadı" });
+    if (!loginRes.ok) {
+      return res.status(401).json({ error: "Giriş başarısız" });
     }
 
-    // 🛒 Ürün sayfasını çek
-    const productHtml = await fetch(productUrl, {
+    // 🛒 Ürün sayfasını çerezle birlikte çek
+    const productRes = await fetchWithCookies(productUrl, {
       headers: {
-        "Cookie": cookie
+        "User-Agent": "Mozilla/5.0",
+        "Referer": "https://www.payasbebe.com/"
       }
-    }).then(r => r.text());
+    });
+
+    const productHtml = await productRes.text();
 
     // 💵 Fiyatı ayrıştır
     const match = productHtml.match(/<h2 class="pro-detail-price">\s*([\d.,]+)\s*₺\s*<span class="price-alternate">([\d.,]+)\s*\$/);
