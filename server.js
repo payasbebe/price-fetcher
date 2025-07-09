@@ -12,20 +12,21 @@ app.use(express.json());
 const jar = new CookieJar();
 const fetchWithCookies = fetchCookie(fetch, jar);
 
-// 👉 Basit test endpoint
-app.get("/", (_, res) => res.send("✅ API çalışıyor"));
+// 🔁 Ping kontrolü için kök rota
+app.get("/", (req, res) => {
+  res.status(200).send("🟢 Sunucu çalışıyor");
+});
 
+// 💰 Fiyat verisi çekmek için ana endpoint
 app.post("/get-price", async (req, res) => {
   const { productUrl } = req.body;
 
   if (!productUrl) {
-    return res.status(400).json({ error: "❌ productUrl gerekli" });
+    return res.status(400).json({ error: "productUrl gerekli" });
   }
 
   try {
-    console.log("➡️ Giriş yapılıyor:", process.env.LOGIN_EMAIL);
-
-    // 🔐 Giriş yap
+    // Giriş yap
     const loginRes = await fetchWithCookies("https://www.payasbebe.com/Uye/giris", {
       method: "POST",
       headers: {
@@ -37,13 +38,10 @@ app.post("/get-price", async (req, res) => {
     });
 
     if (!loginRes.ok) {
-      console.error("❌ Giriş başarısız, HTTP kod:", loginRes.status);
       return res.status(401).json({ error: "Giriş başarısız" });
     }
 
-    console.log("✅ Giriş başarılı");
-
-    // 🛒 Ürün sayfasını çerezle birlikte çek
+    // Ürün sayfasını al
     const productRes = await fetchWithCookies(productUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0",
@@ -52,20 +50,16 @@ app.post("/get-price", async (req, res) => {
     });
 
     const productHtml = await productRes.text();
-    console.log("📄 Ürün sayfası çekildi");
 
-    // 💵 Fiyatı ayrıştır
+    // Fiyatı ayrıştır
     const match = productHtml.match(/<h2 class="pro-detail-price">\s*([\d.,]+)\s*₺\s*<span class="price-alternate">([\d.,]+)\s*\$/);
 
     if (!match) {
-      console.warn("❌ Fiyat bulunamadı, ürün HTML:", productUrl);
       return res.status(404).json({ error: "Fiyat bulunamadı" });
     }
 
     const priceTL = match[1].trim();
     const priceUSD = match[2].trim();
-
-    console.log(`✅ Fiyat bulundu: ${priceTL} ₺ / ${priceUSD} $`);
 
     return res.json({ priceTL, priceUSD });
 
@@ -75,8 +69,7 @@ app.post("/get-price", async (req, res) => {
   }
 });
 
-// 🌐 Sunucu başlat
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Sunucu çalışıyor: http://0.0.0.0:${PORT}`);
+  console.log(`✅ Sunucu çalışıyor: http://0.0.0.0:${PORT}`);
 });
