@@ -67,3 +67,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Sunucu çalışıyor: http://0.0.0.0:${PORT}`);
 });
+
+console.log("Login:", process.env.LOGIN_EMAIL, process.env.LOGIN_PASSWORD);
