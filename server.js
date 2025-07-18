@@ -1,7 +1,23 @@
-import cheerio from "cheerio";
+const express = require("express");
+const fetch = require("node-fetch");
+const fetchCookie = require("fetch-cookie");
+const { CookieJar } = require("tough-cookie");
+const cheerio = require("cheerio");
+require("dotenv").config();
 
-// ... yukarıdaki kodlar aynı
+const app = express();
+app.use(express.json());
 
+// Çerez yöneten fetch
+const jar = new CookieJar();
+const fetchWithCookies = fetchCookie(fetch, jar);
+
+// 🔁 Ping kontrolü için kök rota
+app.get("/", (req, res) => {
+  res.status(200).send("🟢 Sunucu çalışıyor");
+});
+
+// 💰 Fiyat verisi çekmek için ana endpoint
 app.post("/get-price", async (req, res) => {
   const { productUrl } = req.body;
 
@@ -36,11 +52,11 @@ app.post("/get-price", async (req, res) => {
     const productHtml = await productRes.text();
     const $ = cheerio.load(productHtml);
 
-    // TL fiyatı: <h2 class="pro-detail-price"> içindeki ilk ₺
+    // TL fiyatı: .pro-detail-price içindeki ilk ₺ ifadesi
     const priceText = $(".pro-detail-price").first().text();
     const matchTL = priceText.match(/([\d.,]+)\s*₺/);
 
-    // USD fiyatı: .price-alternate sınıfı
+    // USD fiyatı: .price-alternate içindeki ilk $ ifadesi
     const usdText = $(".price-alternate").first().text();
     const matchUSD = usdText.match(/([\d.,]+)\s*\$/);
 
@@ -48,7 +64,7 @@ app.post("/get-price", async (req, res) => {
       return res.status(404).json({ error: "TL fiyat bulunamadı" });
     }
 
-    const priceTL = matchTL[1].replace(",", ".").trim(); // 179.00
+    const priceTL = matchTL[1].replace(",", ".").trim(); // Örn: "179.00"
     const priceUSD = matchUSD ? matchUSD[1].replace(",", ".").trim() : null;
 
     return res.json({ priceTL, priceUSD });
@@ -57,4 +73,9 @@ app.post("/get-price", async (req, res) => {
     console.error("🔥 Sunucu hatası:", err);
     res.status(500).json({ error: "Sunucu hatası", detail: err.message });
   }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Sunucu çalışıyor: http://0.0.0.0:${PORT}`);
 });
