@@ -1,23 +1,7 @@
-import express from "express";
-import fetch from "node-fetch";
-import fetchCookie from "fetch-cookie";
-import { CookieJar } from "tough-cookie";
-import dotenv from "dotenv";
-dotenv.config();
+import cheerio from "cheerio";
 
-const app = express();
-app.use(express.json());
+// ... yukarıdaki kodlar aynı
 
-// Çerez yöneten fetch
-const jar = new CookieJar();
-const fetchWithCookies = fetchCookie(fetch, jar);
-
-// 🔁 Ping kontrolü için kök rota
-app.get("/", (req, res) => {
-  res.status(200).send("🟢 Sunucu çalışıyor");
-});
-
-// 💰 Fiyat verisi çekmek için ana endpoint
 app.post("/get-price", async (req, res) => {
   const { productUrl } = req.body;
 
@@ -50,16 +34,22 @@ app.post("/get-price", async (req, res) => {
     });
 
     const productHtml = await productRes.text();
+    const $ = cheerio.load(productHtml);
 
-    // Fiyatı ayrıştır
-    const match = productHtml.match(/<h2 class="pro-detail-price">\s*([\d.,]+)\s*₺\s*<span class="price-alternate">([\d.,]+)\s*\$/);
+    // TL fiyatı: <h2 class="pro-detail-price"> içindeki ilk ₺
+    const priceText = $(".pro-detail-price").first().text();
+    const matchTL = priceText.match(/([\d.,]+)\s*₺/);
 
-    if (!match) {
-      return res.status(404).json({ error: "Fiyat bulunamadı" });
+    // USD fiyatı: .price-alternate sınıfı
+    const usdText = $(".price-alternate").first().text();
+    const matchUSD = usdText.match(/([\d.,]+)\s*\$/);
+
+    if (!matchTL) {
+      return res.status(404).json({ error: "TL fiyat bulunamadı" });
     }
 
-    const priceTL = match[1].trim();
-    const priceUSD = match[2].trim();
+    const priceTL = matchTL[1].replace(",", ".").trim(); // 179.00
+    const priceUSD = matchUSD ? matchUSD[1].replace(",", ".").trim() : null;
 
     return res.json({ priceTL, priceUSD });
 
@@ -67,9 +57,4 @@ app.post("/get-price", async (req, res) => {
     console.error("🔥 Sunucu hatası:", err);
     res.status(500).json({ error: "Sunucu hatası", detail: err.message });
   }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ Sunucu çalışıyor: http://0.0.0.0:${PORT}`);
 });
